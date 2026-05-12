@@ -94,17 +94,37 @@ function Particles() {
 }
 
 /* ─── Server Status ─── */
-function ServerStatus({ online }) {
-  const [players] = useState(Math.floor(Math.random() * 55) + 18);
+function ServerStatus() {
+  const [status, setStatus] = useState({ online: null, players: 0, max: 100 });
   const [copied, setCopied] = useState(false);
   const copy = () => { navigator.clipboard?.writeText("ryslingecity.mintservers.com"); setCopied(true); setTimeout(() => setCopied(false), 2000); };
-  const c = online ? "#22D67A" : "#FF4D6A";
+
+  useEffect(() => {
+    const fetchStatus = () => {
+      fetch("https://api.mcsrvstat.us/3/ryslingecity.mintservers.com:25581")
+        .then(r => r.json())
+        .then(data => {
+          setStatus({
+            online: data.online || false,
+            players: data.players?.online || 0,
+            max: data.players?.max || 100,
+          });
+        })
+        .catch(() => setStatus({ online: false, players: 0, max: 100 }));
+    };
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 60000); // refresh every 60s
+    return () => clearInterval(interval);
+  }, []);
+
+  const loading = status.online === null;
+  const c = loading ? "#6B6490" : status.online ? "#22D67A" : "#FF4D6A";
   return (
     <div style={{ background: "rgba(10,8,20,0.85)", border: `1px solid ${c}44`, borderRadius: 16, padding: "20px 28px", display: "flex", alignItems: "center", gap: 20, backdropFilter: "blur(24px)", boxShadow: `0 0 50px ${c}12`, flexWrap: "wrap" }}>
       <div style={{ width: 14, height: 14, borderRadius: "50%", background: c, boxShadow: `0 0 14px ${c}`, animation: "pulse 2s infinite" }} />
       <div style={{ flex: 1, minWidth: 140 }}>
-        <div style={{ color: c, fontSize: 12, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", fontFamily: "var(--mono)" }}>{online ? "● SERVER ONLINE" : "● OFFLINE"}</div>
-        <div style={{ color: "#6B6490", fontSize: 13, marginTop: 2, fontFamily: "var(--mono)" }}>{online ? `${players}/100 players online` : "Maintenance in progress"}</div>
+        <div style={{ color: c, fontSize: 12, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", fontFamily: "var(--mono)" }}>{loading ? "● CHECKING..." : status.online ? "● SERVER ONLINE" : "● OFFLINE"}</div>
+        <div style={{ color: "#6B6490", fontSize: 13, marginTop: 2, fontFamily: "var(--mono)" }}>{loading ? "Fetching server status..." : status.online ? `${status.players}/${status.max} players online` : "Server is offline"}</div>
       </div>
       <button onClick={copy} style={{ background: `${c}14`, border: `1px solid ${c}30`, color: c, padding: "10px 24px", borderRadius: 10, cursor: "pointer", fontSize: 14, fontFamily: "var(--mono)", fontWeight: 600, transition: "all 0.3s" }}>{copied ? "✓ Copied!" : "ryslingecity.mintservers.com"}</button>
     </div>
@@ -351,7 +371,6 @@ export default function RyslingeCity() {
   const [tab, setTab] = useState("home");
   const [filter, setFilter] = useState("all");
   const [checkout, setCheckout] = useState(null);
-  const [online] = useState(true);
   const [loading, setLoading] = useState(true);
 
   // Data state
@@ -484,7 +503,7 @@ export default function RyslingeCity() {
               <h1 style={{ fontFamily: "var(--title)", fontSize: "clamp(34px,6vw,62px)", fontWeight: 900, background: "linear-gradient(135deg, #B388FF 0%, #E040FB 30%, #FF4D6A 60%, #FFB300 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: "0 0 12px", animation: "titleGlow 4s ease-in-out infinite", lineHeight: 1.1 }}>RYSLINGECITY</h1>
               <div style={{ fontFamily: "var(--mono)", fontSize: 13, color: "#6B6490", letterSpacing: 4, textTransform: "uppercase", marginBottom: 8 }}>RPG · Custom Mobs · Dungeons · Boss Fights</div>
               <p style={{ color: "#4A4468", fontSize: 14, fontFamily: "var(--mono)", maxWidth: 480, margin: "0 auto 40px", lineHeight: 1.7 }}>An epic RPG Minecraft server with hand-crafted dungeons,<br />custom bosses, unique classes, and endless adventures.</p>
-              <ServerStatus online={online} />
+              <ServerStatus />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, margin: "48px 0" }}>
               {FEATURES.map((f, i) => (
