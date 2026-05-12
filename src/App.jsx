@@ -995,7 +995,7 @@ export default function RyslingeCity() {
       <footer style={{ borderTop: "1px solid #1E1A36", padding: 24, textAlign: "center", position: "relative", zIndex: 2 }}><p style={{ color: "#1E1A36", fontSize: 12, fontFamily: "var(--mono)", margin: 0 }}>© 2026 RyslingeCity — Not affiliated with Mojang Studios</p></footer>
 
       {checkout && <CheckoutModal item={checkout} onClose={() => setCheckout(null)} />}
-      {showAdmin && adminAuth && <AdminPanel updates={updates} setUpdates={setUpdates} roadmap={roadmapItems} setRoadmap={setRoadmapItems} rules={rules} setRules={setRules} staff={staff} setStaff={setStaff} onClose={() => setShowAdmin(false)} onSave={handleSave} />}
+      {showAdmin && adminAuth && <AdminPanel updates={updates} setUpdates={setUpdates} roadmap={roadmapItems} setRoadmap={setRoadmapItems} rules={rules} setRules={setRules} staff={staff} setStaff={setStaff} onClose={() => { setShowAdmin(false); setTab("home"); }} onSave={handleSave} />}
     </div>
   );
 }
