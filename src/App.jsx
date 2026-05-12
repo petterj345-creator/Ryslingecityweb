@@ -101,7 +101,7 @@ function ServerStatus() {
 
   useEffect(() => {
     const fetchStatus = () => {
-      fetch("https://api.mcsrvstat.us/2/ryslingecity.mintservers.com:25581")
+      fetch("https://api.mcsrvstat.us/2/ryslingecity.mintservers.com")
         .then(r => r.json())
         .then(data => {
           console.log("MC Server API response:", data);
