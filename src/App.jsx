@@ -1,4 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { db } from "./firebase";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
+
+const SITE_DOC_PATH = ["site", "content"];
 
 /* ─── Default Data ─── */
 const DEFAULT_STORE = [
@@ -637,12 +641,23 @@ export default function RyslingeCity() {
   const [menuOpen, setMenuOpen] = useState(false);
   const isMobile = useIsMobile();
 
-  // Data state
+  // Data state — single object so we can sync atomically with Firestore
   const [storeItems] = useState(DEFAULT_STORE);
-  const [updates, setUpdates] = useState(DEFAULT_UPDATES);
-  const [roadmapItems, setRoadmapItems] = useState(DEFAULT_ROADMAP);
-  const [rules, setRules] = useState(DEFAULT_RULES);
-  const [staff, setStaff] = useState(DEFAULT_STAFF);
+  const [data, setData] = useState({
+    updates: DEFAULT_UPDATES,
+    roadmap: DEFAULT_ROADMAP,
+    rules: DEFAULT_RULES,
+    staff: DEFAULT_STAFF,
+  });
+  const { updates, roadmap: roadmapItems, rules, staff } = data;
+
+  const makeSetter = (key) => useCallback((updater) => {
+    setData(prev => ({ ...prev, [key]: typeof updater === "function" ? updater(prev[key]) : updater }));
+  }, []);
+  const setUpdates = makeSetter("updates");
+  const setRoadmapItems = makeSetter("roadmap");
+  const setRules = makeSetter("rules");
+  const setStaff = makeSetter("staff");
 
   // Admin state
   const [showAdmin, setShowAdmin] = useState(false);
@@ -650,36 +665,48 @@ export default function RyslingeCity() {
   const [pwInput, setPwInput] = useState("");
   const [pwError, setPwError] = useState(false);
 
-  // Load data from storage
+  // Firestore subscribe + auto-save
+  const isFromSnapshot = useRef(false);
+
   useEffect(() => {
-    (async () => {
-      const u = await loadData("ryslingecity-updates", DEFAULT_UPDATES);
-      const r = await loadData("ryslingecity-roadmap", DEFAULT_ROADMAP);
-      const rl = await loadData("ryslingecity-rules", DEFAULT_RULES);
-      const st = await loadData("ryslingecity-staff", DEFAULT_STAFF);
-      setUpdates(u);
-      setRoadmapItems(r);
-      setRules(rl);
-      setStaff(st);
+    const ref = doc(db, ...SITE_DOC_PATH);
+    const unsub = onSnapshot(ref, (snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        isFromSnapshot.current = true;
+        setData({
+          updates: d.updates || DEFAULT_UPDATES,
+          roadmap: d.roadmap || DEFAULT_ROADMAP,
+          rules: d.rules || DEFAULT_RULES,
+          staff: d.staff || DEFAULT_STAFF,
+        });
+      } else {
+        // Document doesn't exist yet — seed with defaults
+        setDoc(ref, {
+          updates: DEFAULT_UPDATES,
+          roadmap: DEFAULT_ROADMAP,
+          rules: DEFAULT_RULES,
+          staff: DEFAULT_STAFF,
+        }).catch(e => console.error("Firestore seed error:", e));
+      }
       setLoading(false);
-    })();
+    }, (err) => {
+      console.error("Firestore subscribe error:", err);
+      setLoading(false);
+    });
+    return unsub;
   }, []);
 
-  // Save handler
-  const handleSave = useCallback(() => {
-    setTimeout(async () => {
-      await saveData("ryslingecity-updates", updates);
-      await saveData("ryslingecity-roadmap", roadmapItems);
-      await saveData("ryslingecity-rules", rules);
-      await saveData("ryslingecity-staff", staff);
-    }, 100);
-  }, [updates, roadmapItems, rules, staff]);
+  useEffect(() => {
+    if (loading) return;
+    if (isFromSnapshot.current) {
+      isFromSnapshot.current = false;
+      return;
+    }
+    setDoc(doc(db, ...SITE_DOC_PATH), data).catch(e => console.error("Firestore save error:", e));
+  }, [data, loading]);
 
-  // Auto-save when data changes
-  useEffect(() => { if (!loading) { saveData("ryslingecity-updates", updates); } }, [updates, loading]);
-  useEffect(() => { if (!loading) { saveData("ryslingecity-roadmap", roadmapItems); } }, [roadmapItems, loading]);
-  useEffect(() => { if (!loading) { saveData("ryslingecity-rules", rules); } }, [rules, loading]);
-  useEffect(() => { if (!loading) { saveData("ryslingecity-staff", staff); } }, [staff, loading]);
+  const handleSave = useCallback(() => {}, []); // saves are automatic via Firestore
 
   const tryLogin = () => {
     if (pwInput === ADMIN_PASSWORD) { setAdminAuth(true); setShowAdmin(true); setPwError(false); }
