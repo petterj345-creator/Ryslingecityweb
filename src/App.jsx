@@ -33,15 +33,19 @@ const DEFAULT_ROADMAP = [
   { id: "r10", quarter: "Q4 2026", title: "Economy Rework", date: "Dec 2026", status: "concept", progress: 0, desc: "Player-driven auction house, shop plots, dynamic pricing, and trade routes.", icon: "💰" },
 ];
 
-const RULES = [
-  "No griefing, raiding, or stealing from other players",
-  "Respect all players and staff — no toxicity",
-  "No hacks, exploits, or unauthorized mods",
-  "Max 1 alt account per player",
-  "No advertising other servers",
-  "Do not abuse bugs — report them to staff",
-  "Staff decisions are final",
-  "English in global chat",
+const DEFAULT_RULES = [
+  { id: "rule1", text: "No griefing, raiding, or stealing from other players" },
+  { id: "rule2", text: "Respect all players and staff — no toxicity" },
+  { id: "rule3", text: "No hacks, exploits, or unauthorized mods" },
+  { id: "rule4", text: "Max 1 alt account per player" },
+  { id: "rule5", text: "No advertising other servers" },
+  { id: "rule6", text: "Do not abuse bugs — report them to staff" },
+  { id: "rule7", text: "Staff decisions are final" },
+  { id: "rule8", text: "English in global chat" },
+];
+
+const DEFAULT_STAFF = [
+  { id: "s1", name: "petterj", role: "Owner", color: "#FF4D6A", icon: "👑", discord: "petterj", desc: "Server founder & lead developer" },
 ];
 
 const FEATURES = [
@@ -254,7 +258,7 @@ function EmojiPicker({ value, onChange, color = "#B388FF" }) {
 /* ═══════════════════════════════════════════════════ */
 /* ─── ADMIN PANEL ─── */
 /* ═══════════════════════════════════════════════════ */
-function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, onClose, onSave }) {
+function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, rules, setRules, staff, setStaff, onClose, onSave }) {
   const [section, setSection] = useState("news");
   const [editItem, setEditItem] = useState(null);
   const [saved, setSaved] = useState(false);
@@ -307,9 +311,69 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, onClose, onSave 
     onSave();
   };
 
+  // ── Rules form
+  const emptyRule = { id: "", text: "" };
+  const [ruleForm, setRuleForm] = useState(emptyRule);
+
+  const saveRule = () => {
+    if (!ruleForm.text.trim()) return;
+    const item = { ...ruleForm, id: ruleForm.id || "rule" + Date.now() };
+    if (editItem) {
+      setRules(prev => prev.map(r => r.id === editItem.id ? item : r));
+    } else {
+      setRules(prev => [...prev, item]);
+    }
+    setRuleForm(emptyRule); setEditItem(null); showSaved(); onSave();
+  };
+
+  const deleteRule = (id) => { setRules(prev => prev.filter(r => r.id !== id)); onSave(); };
+
+  const moveRule = (index, dir) => {
+    setRules(prev => {
+      const target = index + dir;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+    onSave();
+  };
+
+  // ── Staff form
+  const emptyStaff = { id: "", name: "", role: "Helper", color: "#22D67A", icon: "🛡️", discord: "", desc: "" };
+  const [staffForm, setStaffForm] = useState(emptyStaff);
+
+  const saveStaff = () => {
+    if (!staffForm.name.trim() || !staffForm.role.trim()) return;
+    const item = { ...staffForm, id: staffForm.id || "s" + Date.now() };
+    if (editItem) {
+      setStaff(prev => prev.map(s => s.id === editItem.id ? item : s));
+    } else {
+      setStaff(prev => [...prev, item]);
+    }
+    setStaffForm(emptyStaff); setEditItem(null); showSaved(); onSave();
+  };
+
+  const deleteStaff = (id) => { setStaff(prev => prev.filter(s => s.id !== id)); onSave(); };
+
+  const moveStaff = (index, dir) => {
+    setStaff(prev => {
+      const target = index + dir;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+    onSave();
+  };
+
+  const ROLE_COLORS = ["#FF4D6A", "#B388FF", "#00BFFF", "#22D67A", "#FFB300", "#FF8A65", "#6B6490"];
+
   const sections = [
     { id: "news", label: "📢 News", color: "#FF4D6A" },
     { id: "roadmap", label: "🗺️ Roadmap", color: "#B388FF" },
+    { id: "rules", label: "📜 Rules", color: "#FFB300" },
+    { id: "staff", label: "👥 Staff", color: "#22D67A" },
   ];
 
   return (
@@ -329,7 +393,7 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, onClose, onSave 
         {/* Section tabs */}
         <div style={{ display: "flex", gap: 8, marginBottom: 28, flexWrap: "wrap" }}>
           {sections.map(s => (
-            <button key={s.id} onClick={() => { setSection(s.id); setEditItem(null); setNewsForm(emptyNews); setRoadmapForm(emptyRoadmap); }} style={{
+            <button key={s.id} onClick={() => { setSection(s.id); setEditItem(null); setNewsForm(emptyNews); setRoadmapForm(emptyRoadmap); setRuleForm(emptyRule); setStaffForm(emptyStaff); }} style={{
               background: section === s.id ? `${s.color}20` : "rgba(255,255,255,0.03)",
               border: `1px solid ${section === s.id ? `${s.color}44` : "#1E1A36"}`,
               color: section === s.id ? s.color : "#4A4468",
@@ -459,6 +523,92 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, onClose, onSave 
             })}
           </div>
         )}
+
+        {/* ── RULES SECTION ── */}
+        {section === "rules" && (
+          <div>
+            <div style={{ background: "rgba(10,8,22,0.9)", border: "1px solid #1E1A36", borderRadius: 16, padding: 24, marginBottom: 24 }}>
+              <h3 style={{ color: "#FFB300", fontFamily: "var(--head)", fontSize: 18, fontWeight: 700, margin: "0 0 20px" }}>{editItem ? "✏️ Edit Rule" : "➕ Add Rule"}</h3>
+              <div style={{ marginBottom: 14 }}><label style={labelStyle}>Rule Text</label><textarea value={ruleForm.text} onChange={e => setRuleForm(p => ({ ...p, text: e.target.value }))} placeholder="e.g. No griefing or stealing" rows={2} style={{ ...inputStyle, resize: "vertical" }} /></div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                {editItem && <button onClick={() => { setEditItem(null); setRuleForm(emptyRule); }} style={adminBtnStyle("#4A4468")}>Cancel</button>}
+                <button onClick={saveRule} style={adminBtnStyle("#FFB300")}>{editItem ? "UPDATE" : "ADD"}</button>
+              </div>
+            </div>
+
+            <h3 style={{ color: "#6B6490", fontFamily: "var(--mono)", fontSize: 12, letterSpacing: 2, marginBottom: 12 }}>EXISTING RULES ({rules.length})</h3>
+            {rules.map((r, idx) => {
+              const arrowBtn = (disabled) => ({ background: "none", border: "1px solid #2A2548", color: disabled ? "#2A2548" : "#FFB300", padding: "3px 8px", borderRadius: 6, cursor: disabled ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "var(--mono)", lineHeight: 1 });
+              return (
+                <div key={r.id} style={{ background: "rgba(10,8,22,0.7)", border: "1px solid #1E1A36", borderRadius: 12, padding: "14px 18px", marginBottom: 8, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    <button onClick={() => moveRule(idx, -1)} disabled={idx === 0} title="Move up" style={arrowBtn(idx === 0)}>▲</button>
+                    <button onClick={() => moveRule(idx, 1)} disabled={idx === rules.length - 1} title="Move down" style={arrowBtn(idx === rules.length - 1)}>▼</button>
+                  </div>
+                  <div style={{ width: 28, height: 28, background: "rgba(255,179,0,0.1)", border: "1px solid rgba(255,179,0,0.25)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", color: "#FFB300", fontSize: 12, fontWeight: 800, fontFamily: "var(--mono)", flexShrink: 0 }}>{idx + 1}</div>
+                  <div style={{ flex: 1, minWidth: 150, color: "#E0D8F0", fontSize: 13, fontFamily: "var(--mono)" }}>{r.text}</div>
+                  <button onClick={() => { setEditItem(r); setRuleForm(r); }} style={{ background: "none", border: "1px solid #2A2548", color: "#B388FF", padding: "5px 12px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontFamily: "var(--mono)" }}>Edit</button>
+                  <button onClick={() => deleteRule(r.id)} style={{ background: "none", border: "1px solid #2A2548", color: "#FF4D6A", padding: "5px 12px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontFamily: "var(--mono)" }}>Delete</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── STAFF SECTION ── */}
+        {section === "staff" && (
+          <div>
+            <div style={{ background: "rgba(10,8,22,0.9)", border: "1px solid #1E1A36", borderRadius: 16, padding: 24, marginBottom: 24 }}>
+              <h3 style={{ color: "#22D67A", fontFamily: "var(--head)", fontSize: 18, fontWeight: 700, margin: "0 0 20px" }}>{editItem ? "✏️ Edit Staff Member" : "➕ Add Staff Member"}</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
+                <div><label style={labelStyle}>Name</label><input value={staffForm.name} onChange={e => setStaffForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. petterj" style={inputStyle} /></div>
+                <div><label style={labelStyle}>Role</label><input value={staffForm.role} onChange={e => setStaffForm(p => ({ ...p, role: e.target.value }))} placeholder="e.g. Admin" style={inputStyle} /></div>
+                <div><label style={labelStyle}>Icon</label><EmojiPicker value={staffForm.icon} onChange={icon => setStaffForm(p => ({ ...p, icon }))} color="#22D67A" /></div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                <div><label style={labelStyle}>Discord Handle</label><input value={staffForm.discord} onChange={e => setStaffForm(p => ({ ...p, discord: e.target.value }))} placeholder="e.g. petterj" style={inputStyle} /></div>
+                <div>
+                  <label style={labelStyle}>Color</label>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", height: 38 }}>
+                    {ROLE_COLORS.map(c => (
+                      <button key={c} type="button" onClick={() => setStaffForm(p => ({ ...p, color: c }))} title={c} style={{
+                        width: 28, height: 28, borderRadius: 6, background: c, cursor: "pointer",
+                        border: staffForm.color === c ? "2px solid #E0D8F0" : "1px solid #1E1A36",
+                        boxShadow: staffForm.color === c ? `0 0 8px ${c}88` : "none",
+                      }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={{ marginBottom: 14 }}><label style={labelStyle}>Short Description (optional)</label><textarea value={staffForm.desc} onChange={e => setStaffForm(p => ({ ...p, desc: e.target.value }))} placeholder="e.g. Server founder & lead developer" rows={2} style={{ ...inputStyle, resize: "vertical" }} /></div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                {editItem && <button onClick={() => { setEditItem(null); setStaffForm(emptyStaff); }} style={adminBtnStyle("#4A4468")}>Cancel</button>}
+                <button onClick={saveStaff} style={adminBtnStyle("#22D67A")}>{editItem ? "UPDATE" : "ADD"}</button>
+              </div>
+            </div>
+
+            <h3 style={{ color: "#6B6490", fontFamily: "var(--mono)", fontSize: 12, letterSpacing: 2, marginBottom: 12 }}>EXISTING STAFF ({staff.length})</h3>
+            {staff.map((m, idx) => {
+              const arrowBtn = (disabled) => ({ background: "none", border: "1px solid #2A2548", color: disabled ? "#2A2548" : "#22D67A", padding: "3px 8px", borderRadius: 6, cursor: disabled ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "var(--mono)", lineHeight: 1 });
+              return (
+                <div key={m.id} style={{ background: "rgba(10,8,22,0.7)", border: "1px solid #1E1A36", borderRadius: 12, padding: "14px 18px", marginBottom: 8, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    <button onClick={() => moveStaff(idx, -1)} disabled={idx === 0} title="Move up" style={arrowBtn(idx === 0)}>▲</button>
+                    <button onClick={() => moveStaff(idx, 1)} disabled={idx === staff.length - 1} title="Move down" style={arrowBtn(idx === staff.length - 1)}>▼</button>
+                  </div>
+                  <span style={{ fontSize: 24 }}>{m.icon}</span>
+                  <div style={{ flex: 1, minWidth: 150 }}>
+                    <div style={{ color: "#E0D8F0", fontSize: 14, fontWeight: 600 }}>{m.name}</div>
+                    <div style={{ color: "#4A4468", fontSize: 11, fontFamily: "var(--mono)" }}>{m.discord ? `@${m.discord}` : "—"}</div>
+                  </div>
+                  <div style={{ background: `${m.color}20`, color: m.color, fontSize: 9, fontWeight: 800, padding: "3px 8px", borderRadius: 4, fontFamily: "var(--mono)", letterSpacing: 1 }}>{m.role.toUpperCase()}</div>
+                  <button onClick={() => { setEditItem(m); setStaffForm(m); }} style={{ background: "none", border: "1px solid #2A2548", color: "#B388FF", padding: "5px 12px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontFamily: "var(--mono)" }}>Edit</button>
+                  <button onClick={() => deleteStaff(m.id)} style={{ background: "none", border: "1px solid #2A2548", color: "#FF4D6A", padding: "5px 12px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontFamily: "var(--mono)" }}>Delete</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -477,6 +627,8 @@ export default function RyslingeCity() {
   const [storeItems] = useState(DEFAULT_STORE);
   const [updates, setUpdates] = useState(DEFAULT_UPDATES);
   const [roadmapItems, setRoadmapItems] = useState(DEFAULT_ROADMAP);
+  const [rules, setRules] = useState(DEFAULT_RULES);
+  const [staff, setStaff] = useState(DEFAULT_STAFF);
 
   // Admin state
   const [showAdmin, setShowAdmin] = useState(false);
@@ -489,8 +641,12 @@ export default function RyslingeCity() {
     (async () => {
       const u = await loadData("ryslingecity-updates", DEFAULT_UPDATES);
       const r = await loadData("ryslingecity-roadmap", DEFAULT_ROADMAP);
+      const rl = await loadData("ryslingecity-rules", DEFAULT_RULES);
+      const st = await loadData("ryslingecity-staff", DEFAULT_STAFF);
       setUpdates(u);
       setRoadmapItems(r);
+      setRules(rl);
+      setStaff(st);
       setLoading(false);
     })();
   }, []);
@@ -500,12 +656,16 @@ export default function RyslingeCity() {
     setTimeout(async () => {
       await saveData("ryslingecity-updates", updates);
       await saveData("ryslingecity-roadmap", roadmapItems);
+      await saveData("ryslingecity-rules", rules);
+      await saveData("ryslingecity-staff", staff);
     }, 100);
-  }, [updates, roadmapItems]);
+  }, [updates, roadmapItems, rules, staff]);
 
   // Auto-save when data changes
   useEffect(() => { if (!loading) { saveData("ryslingecity-updates", updates); } }, [updates, loading]);
   useEffect(() => { if (!loading) { saveData("ryslingecity-roadmap", roadmapItems); } }, [roadmapItems, loading]);
+  useEffect(() => { if (!loading) { saveData("ryslingecity-rules", rules); } }, [rules, loading]);
+  useEffect(() => { if (!loading) { saveData("ryslingecity-staff", staff); } }, [staff, loading]);
 
   const tryLogin = () => {
     if (pwInput === ADMIN_PASSWORD) { setAdminAuth(true); setShowAdmin(true); setPwError(false); }
@@ -527,6 +687,7 @@ export default function RyslingeCity() {
     { id: "updates", label: "NEWS", icon: "📢" },
     { id: "roadmap", label: "ROADMAP", icon: "🗺️" },
     { id: "rules", label: "RULES", icon: "📜" },
+    { id: "info", label: "INFO", icon: "ℹ️" },
   ];
 
   if (loading) return <div style={{ minHeight: "100vh", background: "#08061A", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ color: "#B388FF", fontFamily: "monospace", fontSize: 16 }}>Loading...</span></div>;
@@ -715,13 +876,47 @@ export default function RyslingeCity() {
           <div style={{ animation: "slideUp 0.6s ease" }}>
             <div style={{ textAlign: "center", margin: "40px 0 28px" }}><h2 style={{ fontFamily: "var(--title)", fontSize: 36, fontWeight: 900, color: "#B388FF", margin: "0 0 8px" }}>RULES</h2><p style={{ color: "#4A4468", fontFamily: "var(--mono)", fontSize: 13 }}>Follow the rules for a fair experience</p></div>
             <div style={{ maxWidth: 620, margin: "0 auto" }}>
-              {RULES.map((r, i) => (
-                <div key={i} style={{ background: "rgba(10,8,22,0.8)", border: "1px solid #1E1A36", borderRadius: 12, padding: "16px 22px", marginBottom: 8, display: "flex", alignItems: "center", gap: 16, backdropFilter: "blur(10px)", animation: `slideUp 0.5s ease ${i * 0.06}s both` }}>
+              {rules.map((r, i) => (
+                <div key={r.id} style={{ background: "rgba(10,8,22,0.8)", border: "1px solid #1E1A36", borderRadius: 12, padding: "16px 22px", marginBottom: 8, display: "flex", alignItems: "center", gap: 16, backdropFilter: "blur(10px)", animation: `slideUp 0.5s ease ${i * 0.06}s both` }}>
                   <div style={{ width: 32, height: 32, background: "rgba(180,130,255,0.06)", border: "1px solid rgba(180,130,255,0.12)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#B388FF", fontSize: 14, fontWeight: 800, fontFamily: "var(--mono)", flexShrink: 0 }}>{i + 1}</div>
-                  <span style={{ color: "#8A82A6", fontSize: 14, fontFamily: "var(--mono)" }}>{r}</span>
+                  <span style={{ color: "#8A82A6", fontSize: 14, fontFamily: "var(--mono)" }}>{r.text}</span>
                 </div>
               ))}
               <div style={{ background: "rgba(255,77,106,0.06)", border: "1px solid rgba(255,77,106,0.15)", borderRadius: 12, padding: "18px 24px", marginTop: 20, textAlign: "center" }}><p style={{ color: "#FF8FA3", fontSize: 13, fontFamily: "var(--mono)", margin: 0 }}>⚠️ Breaking the rules may result in a mute, kick, or permanent ban.</p></div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ INFO ═══ */}
+        {tab === "info" && (
+          <div style={{ animation: "slideUp 0.6s ease" }}>
+            <div style={{ textAlign: "center", margin: "40px 0 28px" }}>
+              <h2 style={{ fontFamily: "var(--title)", fontSize: 36, fontWeight: 900, color: "#B388FF", margin: "0 0 8px" }}>STAFF</h2>
+              <p style={{ color: "#4A4468", fontFamily: "var(--mono)", fontSize: 13 }}>The team running RyslingeCity</p>
+            </div>
+            <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
+              {staff.map((m, i) => (
+                <div key={m.id} style={{ background: "rgba(10,8,22,0.85)", border: `1px solid ${m.color}33`, borderRadius: 16, padding: 24, backdropFilter: "blur(12px)", animation: `slideUp 0.5s ease ${i * 0.08}s both`, boxShadow: `0 0 30px ${m.color}10` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 12 }}>
+                    <div style={{ width: 56, height: 56, background: `${m.color}18`, border: `1px solid ${m.color}44`, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, flexShrink: 0 }}>{m.icon}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <h3 style={{ color: "#E0D8F0", fontSize: 18, fontWeight: 700, margin: "0 0 4px", fontFamily: "var(--head)" }}>{m.name}</h3>
+                      <div style={{ display: "inline-block", background: `${m.color}20`, color: m.color, fontSize: 10, fontWeight: 800, padding: "3px 10px", borderRadius: 5, fontFamily: "var(--mono)", letterSpacing: 1.5 }}>{m.role.toUpperCase()}</div>
+                    </div>
+                  </div>
+                  {m.desc && <p style={{ color: "#6B6490", fontSize: 12, fontFamily: "var(--mono)", margin: "0 0 12px", lineHeight: 1.6 }}>{m.desc}</p>}
+                  {m.discord && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(88,101,242,0.08)", border: "1px solid rgba(88,101,242,0.18)", borderRadius: 8, padding: "8px 12px" }}>
+                      <span style={{ color: "#7289DA", fontSize: 14 }}>💬</span>
+                      <span style={{ color: "#7289DA", fontSize: 12, fontFamily: "var(--mono)", fontWeight: 600 }}>{m.discord}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div style={{ maxWidth: 720, margin: "32px auto 0", background: "linear-gradient(135deg, rgba(88,101,242,0.1), rgba(88,101,242,0.03))", border: "1px solid rgba(88,101,242,0.2)", borderRadius: 14, padding: "20px 26px", textAlign: "center" }}>
+              <p style={{ color: "#6B6490", fontSize: 13, fontFamily: "var(--mono)", margin: "0 0 12px", lineHeight: 1.6 }}>Need help? Reach out to staff on Discord</p>
+              <a href="https://discord.gg/WgjNwxaneK" target="_blank" rel="noopener noreferrer" style={{ background: "#5865F2", color: "white", padding: "10px 24px", borderRadius: 8, fontSize: 13, fontWeight: 700, fontFamily: "var(--head)", letterSpacing: 2, textDecoration: "none", display: "inline-block" }}>JOIN DISCORD →</a>
             </div>
           </div>
         )}
@@ -730,7 +925,7 @@ export default function RyslingeCity() {
       <footer style={{ borderTop: "1px solid #1E1A36", padding: 24, textAlign: "center", position: "relative", zIndex: 2 }}><p style={{ color: "#1E1A36", fontSize: 12, fontFamily: "var(--mono)", margin: 0 }}>© 2026 RyslingeCity — Not affiliated with Mojang Studios</p></footer>
 
       {checkout && <CheckoutModal item={checkout} onClose={() => setCheckout(null)} />}
-      {showAdmin && adminAuth && <AdminPanel updates={updates} setUpdates={setUpdates} roadmap={roadmapItems} setRoadmap={setRoadmapItems} onClose={() => setShowAdmin(false)} onSave={handleSave} />}
+      {showAdmin && adminAuth && <AdminPanel updates={updates} setUpdates={setUpdates} roadmap={roadmapItems} setRoadmap={setRoadmapItems} rules={rules} setRules={setRules} staff={staff} setStaff={setStaff} onClose={() => setShowAdmin(false)} onSave={handleSave} />}
     </div>
   );
 }
