@@ -183,6 +183,74 @@ function CheckoutModal({ item, onClose }) {
   );
 }
 
+/* ─── Emoji Picker ─── */
+const EMOJI_CATEGORIES = {
+  rpg: { label: "⚔️", emojis: ["⚔️","🛡️","🏹","🗡️","🪓","🔱","🔮","💎","🏆","🎯","🎲","🃏","💰","🗝️","🔑","📜","📖","🗺️","🧪","⚗️","💍","👑","🎖️","🏅","🥇","🥈","🥉","💼","🎒"] },
+  creatures: { label: "🐉", emojis: ["🐉","🐲","🦖","🦕","🦅","🐺","🦊","🐻","🦁","🐯","🐗","🦌","🦇","🐍","🕷️","🦂","🦑","🐙","🦈","🐊","👹","👺","👻","💀","☠️","👽","🤖","👾","🧙","🧚","🧛","🧜","🧝","🧞","🧟"] },
+  magic: { label: "✨", emojis: ["✨","🌟","⭐","💫","🔥","❄️","⚡","🌊","🌪️","🌈","☄️","🕯️","🔯","☯️","🪄","🧿","🎆","🎇","💥","💢","💨","💦","🌀","☀️","🌙","⛅","⛈️","🌧️","❤️‍🔥"] },
+  places: { label: "🏰", emojis: ["🏰","🏛️","🏯","⛩️","🗼","🏘️","🏠","🏡","⛺","🛖","🌋","🏔️","⛰️","🏜️","🏝️","🌌","🌍","🌎","🌏","🌐","🌑","🌒","🌕","🏞️","🏟️","🏗️","🏚️","🗿"] },
+  nature: { label: "🌳", emojis: ["🌳","🌲","🌴","🌵","🌿","🍀","🌾","🌻","🌹","🌷","🍁","🍂","🍃","🌺","🪷","🌸","🌼","🪴","🌱","🍄","💐"] },
+  food: { label: "🍎", emojis: ["🍎","🍞","🍖","🍗","🥩","🍕","🍔","🌽","🥕","🍄","🍇","🍓","🍒","🥚","🧀","🍯","🍷","🍺","🥤","☕","🍰","🍪","🎂","🥧"] },
+  activity: { label: "🎮", emojis: ["🎮","🕹️","🎯","🎰","🎳","🎪","🎭","🎨","🎬","🎤","🎧","🎵","🎶","🚀","⛵","🚢","✈️","🛸","🏁","🚩","🎌"] },
+  symbols: { label: "❤️", emojis: ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💖","💝","💔","✅","❌","⚠️","🚫","💯","🆕","🆙","🔝","☢️","☣️","♻️","⚜️","⚓","🏴","🏳️","📢","🔔"] },
+};
+
+function EmojiPicker({ value, onChange, color = "#B388FF" }) {
+  const [open, setOpen] = useState(false);
+  const [category, setCategory] = useState("rpg");
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button type="button" onClick={() => setOpen(o => !o)} style={{
+        ...inputStyle, textAlign: "left", cursor: "pointer", display: "flex",
+        alignItems: "center", justifyContent: "space-between",
+      }}>
+        <span style={{ fontSize: 20, lineHeight: 1 }}>{value || "🎯"}</span>
+        <span style={{ color: "#4A4468", fontSize: 10, fontFamily: "var(--mono)" }}>{open ? "▲" : "▼ pick"}</span>
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0,
+          background: "rgba(15,12,30,0.98)", border: `1px solid ${color}44`,
+          borderRadius: 10, padding: 10, zIndex: 50,
+          boxShadow: "0 16px 50px rgba(0,0,0,0.6)", backdropFilter: "blur(20px)",
+          maxHeight: 320, display: "flex", flexDirection: "column",
+        }}>
+          <div style={{ display: "flex", gap: 2, marginBottom: 8, borderBottom: "1px solid #1E1A36", paddingBottom: 6, flexWrap: "wrap" }}>
+            {Object.entries(EMOJI_CATEGORIES).map(([k, c]) => (
+              <button key={k} type="button" onClick={() => setCategory(k)} title={k} style={{
+                background: category === k ? `${color}22` : "transparent",
+                border: `1px solid ${category === k ? `${color}44` : "transparent"}`,
+                padding: "4px 8px", borderRadius: 6, cursor: "pointer", fontSize: 16, lineHeight: 1,
+              }}>{c.label}</button>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, overflowY: "auto", flex: 1 }}>
+            {EMOJI_CATEGORIES[category].emojis.map((emoji, i) => (
+              <button key={i} type="button" onClick={() => { onChange(emoji); setOpen(false); }}
+                onMouseEnter={e => e.currentTarget.style.background = `${color}22`}
+                onMouseLeave={e => e.currentTarget.style.background = value === emoji ? `${color}33` : "transparent"}
+                style={{
+                  background: value === emoji ? `${color}33` : "transparent",
+                  border: "none", padding: 6, borderRadius: 6, cursor: "pointer",
+                  fontSize: 20, lineHeight: 1, transition: "background 0.15s",
+                }}>{emoji}</button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════ */
 /* ─── ADMIN PANEL ─── */
 /* ═══════════════════════════════════════════════════ */
@@ -196,6 +264,7 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, onClose, onSave 
   // ── News form
   const emptyNews = { id: "", date: "", title: "", desc: "", type: "major" };
   const [newsForm, setNewsForm] = useState(emptyNews);
+  const [lastNewsEmoji, setLastNewsEmoji] = useState("");
 
   const saveNews = () => {
     if (!newsForm.title || !newsForm.desc) return;
@@ -275,8 +344,19 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, onClose, onSave 
           <div>
             <div style={{ background: "rgba(10,8,22,0.9)", border: "1px solid #1E1A36", borderRadius: 16, padding: 24, marginBottom: 24 }}>
               <h3 style={{ color: "#FF4D6A", fontFamily: "var(--head)", fontSize: 18, fontWeight: 700, margin: "0 0 20px" }}>{editItem ? "✏️ Edit Update" : "➕ Add New Update"}</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
                 <div><label style={labelStyle}>Title</label><input value={newsForm.title} onChange={e => setNewsForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. New Dungeon Released 🏰" style={inputStyle} /></div>
+                <div>
+                  <label style={labelStyle}>Add Emoji</label>
+                  <EmojiPicker
+                    value={lastNewsEmoji}
+                    onChange={emoji => {
+                      setNewsForm(p => ({ ...p, title: (p.title + (p.title && !p.title.endsWith(" ") ? " " : "") + emoji) }));
+                      setLastNewsEmoji(emoji);
+                    }}
+                    color="#FF4D6A"
+                  />
+                </div>
                 <div><label style={labelStyle}>Date</label><input value={newsForm.date} onChange={e => setNewsForm(p => ({ ...p, date: e.target.value }))} placeholder="e.g. May 15, 2026" style={inputStyle} /></div>
               </div>
               <div style={{ marginBottom: 14 }}><label style={labelStyle}>Description</label><textarea value={newsForm.desc} onChange={e => setNewsForm(p => ({ ...p, desc: e.target.value }))} placeholder="What's new..." rows={3} style={{ ...inputStyle, resize: "vertical" }} /></div>
@@ -327,7 +407,7 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, onClose, onSave 
               <h3 style={{ color: "#B388FF", fontFamily: "var(--head)", fontSize: 18, fontWeight: 700, margin: "0 0 20px" }}>{editItem ? "✏️ Edit Roadmap Item" : "➕ Add Roadmap Item"}</h3>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
                 <div><label style={labelStyle}>Title</label><input value={roadmapForm.title} onChange={e => setRoadmapForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Pet System" style={inputStyle} /></div>
-                <div><label style={labelStyle}>Icon (emoji)</label><input value={roadmapForm.icon} onChange={e => setRoadmapForm(p => ({ ...p, icon: e.target.value }))} placeholder="🎯" style={inputStyle} /></div>
+                <div><label style={labelStyle}>Icon (emoji)</label><EmojiPicker value={roadmapForm.icon} onChange={icon => setRoadmapForm(p => ({ ...p, icon }))} color="#B388FF" /></div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
                 <div><label style={labelStyle}>Quarter</label>
@@ -544,14 +624,21 @@ export default function RyslingeCity() {
         {/* ═══ STORE ═══ */}
         {tab === "store" && (
           <div style={{ animation: "slideUp 0.6s ease" }}>
-            <div style={{ textAlign: "center", margin: "40px 0 28px" }}><h2 style={{ fontFamily: "var(--title)", fontSize: 36, fontWeight: 900, color: "#B388FF", margin: "0 0 8px" }}>STORE</h2><p style={{ color: "#4A4468", fontFamily: "var(--mono)", fontSize: 13 }}>Instant delivery via CraftingStore + Stripe</p></div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 32, flexWrap: "wrap" }}>
-              {[{ id: "all", l: "All" }, { id: "ranks", l: "Ranks" }, { id: "extras", l: "Extras" }].map(f => (
-                <button key={f.id} onClick={() => setFilter(f.id)} style={{ background: filter === f.id ? "rgba(180,130,255,0.12)" : "transparent", border: `1px solid ${filter === f.id ? "rgba(180,130,255,0.3)" : "#1E1A36"}`, color: filter === f.id ? "#B388FF" : "#4A4468", padding: "8px 20px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, fontFamily: "var(--head)", letterSpacing: 2 }}>{f.l}</button>
-              ))}
+            <div style={{ textAlign: "center", margin: "40px 0 28px" }}>
+              <h2 style={{ fontFamily: "var(--title)", fontSize: 36, fontWeight: 900, color: "#B388FF", margin: "0 0 8px" }}>STORE</h2>
+              <p style={{ color: "#4A4468", fontFamily: "var(--mono)", fontSize: 13 }}>Coming soon</p>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))", gap: 18 }}>{items.map((item, i) => <div key={item.id} style={{ animation: `slideUp 0.5s ease ${i * 0.07}s both` }}><StoreCard item={item} onBuy={setCheckout} /></div>)}</div>
-            <div style={{ display: "flex", justifyContent: "center", gap: 32, marginTop: 48, flexWrap: "wrap" }}>{["🔒 Stripe Security", "⚡ Instant Delivery", "💬 24/7 Support"].map((b, i) => <span key={i} style={{ color: "#2A2548", fontSize: 12, fontFamily: "var(--mono)", letterSpacing: 1 }}>{b}</span>)}</div>
+            <div style={{ maxWidth: 560, margin: "40px auto 0", textAlign: "center" }}>
+              <div style={{ background: "rgba(10,8,22,0.85)", border: "1px solid rgba(180,130,255,0.2)", borderRadius: 18, padding: "44px 32px", backdropFilter: "blur(20px)", boxShadow: "0 24px 60px rgba(180,130,255,0.08)" }}>
+                <div style={{ fontSize: 64, marginBottom: 18, animation: "float 4s ease-in-out infinite" }}>🛠️</div>
+                <h3 style={{ fontFamily: "var(--title)", fontSize: 26, fontWeight: 900, color: "#B388FF", margin: "0 0 10px", letterSpacing: 2 }}>AVAILABLE LATER</h3>
+                <p style={{ color: "#8A82A6", fontFamily: "var(--mono)", fontSize: 14, lineHeight: 1.7, margin: "0 0 22px" }}>
+                  The webshop is still being built. In the meantime, you can buy ranks and extras by messaging <span style={{ color: "#FF4D6A", fontWeight: 700 }}>petterj</span> on Discord.
+                </p>
+                <a href="https://discord.gg/WgjNwxaneK" target="_blank" rel="noopener noreferrer" style={{ background: "#5865F2", border: "none", color: "white", padding: "13px 30px", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 700, fontFamily: "var(--head)", letterSpacing: 2, textDecoration: "none", display: "inline-block" }}>MESSAGE PETTERJ ON DISCORD →</a>
+                <p style={{ color: "#3A3558", fontFamily: "var(--mono)", fontSize: 11, marginTop: 22, marginBottom: 0, letterSpacing: 1 }}>Stripe checkout coming soon</p>
+              </div>
+            </div>
           </div>
         )}
 
