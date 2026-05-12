@@ -227,6 +227,17 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, onClose, onSave 
 
   const deleteRoadmap = (id) => { setRoadmap(prev => prev.filter(r => r.id !== id)); onSave(); };
 
+  const moveRoadmap = (index, dir) => {
+    setRoadmap(prev => {
+      const target = index + dir;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+    onSave();
+  };
+
   const sections = [
     { id: "news", label: "📢 News", color: "#FF4D6A" },
     { id: "roadmap", label: "🗺️ Roadmap", color: "#B388FF" },
@@ -346,10 +357,15 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, onClose, onSave 
 
             {/* Existing roadmap items */}
             <h3 style={{ color: "#6B6490", fontFamily: "var(--mono)", fontSize: 12, letterSpacing: 2, marginBottom: 12 }}>EXISTING ROADMAP ({roadmap.length})</h3>
-            {roadmap.map(r => {
+            {roadmap.map((r, idx) => {
               const sc = { "in-progress": "#22D67A", planned: "#FFB300", concept: "#6B6490" };
+              const arrowBtn = (disabled) => ({ background: "none", border: "1px solid #2A2548", color: disabled ? "#2A2548" : "#B388FF", padding: "3px 8px", borderRadius: 6, cursor: disabled ? "not-allowed" : "pointer", fontSize: 12, fontFamily: "var(--mono)", lineHeight: 1 });
               return (
                 <div key={r.id} style={{ background: "rgba(10,8,22,0.7)", border: "1px solid #1E1A36", borderRadius: 12, padding: "14px 18px", marginBottom: 8, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    <button onClick={() => moveRoadmap(idx, -1)} disabled={idx === 0} title="Move up" style={arrowBtn(idx === 0)}>▲</button>
+                    <button onClick={() => moveRoadmap(idx, 1)} disabled={idx === roadmap.length - 1} title="Move down" style={arrowBtn(idx === roadmap.length - 1)}>▼</button>
+                  </div>
                   <span style={{ fontSize: 20 }}>{r.icon}</span>
                   <div style={{ flex: 1, minWidth: 150 }}>
                     <div style={{ color: "#E0D8F0", fontSize: 14, fontWeight: 600 }}>{r.title}</div>
