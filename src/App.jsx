@@ -101,19 +101,23 @@ function ServerStatus() {
 
   useEffect(() => {
     const fetchStatus = () => {
-      fetch("https://api.mcsrvstat.us/3/ryslingecity.mintservers.com:25581")
+      fetch("https://api.mcsrvstat.us/2/ryslingecity.mintservers.com:25581")
         .then(r => r.json())
         .then(data => {
+          console.log("MC Server API response:", data);
           setStatus({
-            online: data.online || false,
-            players: data.players?.online || 0,
-            max: data.players?.max || 100,
+            online: data.online === true,
+            players: (data.players && data.players.online) ? data.players.online : 0,
+            max: (data.players && data.players.max) ? data.players.max : 20,
           });
         })
-        .catch(() => setStatus({ online: false, players: 0, max: 100 }));
+        .catch(err => {
+          console.error("MC Server API error:", err);
+          setStatus({ online: false, players: 0, max: 20 });
+        });
     };
     fetchStatus();
-    const interval = setInterval(fetchStatus, 60000); // refresh every 60s
+    const interval = setInterval(fetchStatus, 60000);
     return () => clearInterval(interval);
   }, []);
 
