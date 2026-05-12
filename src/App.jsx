@@ -59,6 +59,17 @@ const FEATURES = [
 
 const ADMIN_PASSWORD = "ryslingeadmin2026";
 
+/* ─── Hooks ─── */
+function useIsMobile(breakpoint = 720) {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= breakpoint);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth <= breakpoint);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 /* ─── Storage helpers ─── */
 async function loadData(key, fallback) {
   try {
@@ -262,6 +273,7 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, rules, setRules,
   const [section, setSection] = useState("news");
   const [editItem, setEditItem] = useState(null);
   const [saved, setSaved] = useState(false);
+  const isMobile = useIsMobile();
 
   const showSaved = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
 
@@ -408,7 +420,7 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, rules, setRules,
           <div>
             <div style={{ background: "rgba(10,8,22,0.9)", border: "1px solid #1E1A36", borderRadius: 16, padding: 24, marginBottom: 24 }}>
               <h3 style={{ color: "#FF4D6A", fontFamily: "var(--head)", fontSize: 18, fontWeight: 700, margin: "0 0 20px" }}>{editItem ? "✏️ Edit Update" : "➕ Add New Update"}</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
                 <div><label style={labelStyle}>Title</label><input value={newsForm.title} onChange={e => setNewsForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. New Dungeon Released 🏰" style={inputStyle} /></div>
                 <div>
                   <label style={labelStyle}>Add Emoji</label>
@@ -469,11 +481,11 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, rules, setRules,
           <div>
             <div style={{ background: "rgba(10,8,22,0.9)", border: "1px solid #1E1A36", borderRadius: 16, padding: 24, marginBottom: 24 }}>
               <h3 style={{ color: "#B388FF", fontFamily: "var(--head)", fontSize: 18, fontWeight: 700, margin: "0 0 20px" }}>{editItem ? "✏️ Edit Roadmap Item" : "➕ Add Roadmap Item"}</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
                 <div><label style={labelStyle}>Title</label><input value={roadmapForm.title} onChange={e => setRoadmapForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Pet System" style={inputStyle} /></div>
                 <div><label style={labelStyle}>Icon (emoji)</label><EmojiPicker value={roadmapForm.icon} onChange={icon => setRoadmapForm(p => ({ ...p, icon }))} color="#B388FF" /></div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
                 <div><label style={labelStyle}>Quarter</label>
                   <select value={roadmapForm.quarter} onChange={e => setRoadmapForm(p => ({ ...p, quarter: e.target.value }))} style={{ ...inputStyle, appearance: "auto" }}>
                     <option value="Q2 2026">Q2 2026</option><option value="Q3 2026">Q3 2026</option><option value="Q4 2026">Q4 2026</option><option value="Q1 2027">Q1 2027</option><option value="Q2 2027">Q2 2027</option>
@@ -560,12 +572,12 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, rules, setRules,
           <div>
             <div style={{ background: "rgba(10,8,22,0.9)", border: "1px solid #1E1A36", borderRadius: 16, padding: 24, marginBottom: 24 }}>
               <h3 style={{ color: "#22D67A", fontFamily: "var(--head)", fontSize: 18, fontWeight: 700, margin: "0 0 20px" }}>{editItem ? "✏️ Edit Staff Member" : "➕ Add Staff Member"}</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
                 <div><label style={labelStyle}>Name</label><input value={staffForm.name} onChange={e => setStaffForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. petterj" style={inputStyle} /></div>
                 <div><label style={labelStyle}>Role</label><input value={staffForm.role} onChange={e => setStaffForm(p => ({ ...p, role: e.target.value }))} placeholder="e.g. Admin" style={inputStyle} /></div>
                 <div><label style={labelStyle}>Icon</label><EmojiPicker value={staffForm.icon} onChange={icon => setStaffForm(p => ({ ...p, icon }))} color="#22D67A" /></div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
                 <div><label style={labelStyle}>Discord Handle</label><input value={staffForm.discord} onChange={e => setStaffForm(p => ({ ...p, discord: e.target.value }))} placeholder="e.g. petterj" style={inputStyle} /></div>
                 <div>
                   <label style={labelStyle}>Color</label>
@@ -622,6 +634,8 @@ export default function RyslingeCity() {
   const [filter, setFilter] = useState("all");
   const [checkout, setCheckout] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   // Data state
   const [storeItems] = useState(DEFAULT_STORE);
@@ -711,39 +725,68 @@ export default function RyslingeCity() {
       <div style={{ position: "fixed", bottom: "10%", right: "5%", fontSize: 100, opacity: 0.04, animation: "runeFloat 8s ease-in-out infinite 2s", pointerEvents: "none", zIndex: 0, color: "#FF4D6A" }}>🐉</div>
 
       {/* Header */}
-      <header style={{ position: "sticky", top: 0, zIndex: 100, background: "rgba(8,6,26,0.92)", backdropFilter: "blur(24px)", borderBottom: "1px solid rgba(180,130,255,0.08)", padding: "0 24px" }}>
+      <header style={{ position: "sticky", top: 0, zIndex: 100, background: "rgba(8,6,26,0.92)", backdropFilter: "blur(24px)", borderBottom: "1px solid rgba(180,130,255,0.08)", padding: isMobile ? "0 14px" : "0 24px" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontSize: 26 }}>🏰</span>
-            <span style={{ fontFamily: "var(--title)", fontSize: 20, fontWeight: 900, background: "linear-gradient(135deg, #B388FF, #FF4D6A, #FFB300)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: 3 }}>RYSLINGECITY</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: isMobile ? 22 : 26 }}>🏰</span>
+            <span style={{ fontFamily: "var(--title)", fontSize: isMobile ? 16 : 20, fontWeight: 900, background: "linear-gradient(135deg, #B388FF, #FF4D6A, #FFB300)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: isMobile ? 2 : 3 }}>RYSLINGECITY</span>
           </div>
-          <nav style={{ display: "flex", gap: 4, alignItems: "center" }}>
-            {tabs.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)} style={{
-                background: tab === t.id ? "rgba(180,130,255,0.1)" : "transparent",
-                border: tab === t.id ? "1px solid rgba(180,130,255,0.2)" : "1px solid transparent",
-                color: tab === t.id ? "#B388FF" : "#4A4468",
-                padding: "8px 14px", borderRadius: 8, cursor: "pointer",
-                fontSize: 12, fontWeight: 700, fontFamily: "var(--head)", letterSpacing: 2,
-                display: "flex", alignItems: "center", gap: 6, transition: "all 0.3s",
-              }}><span style={{ fontSize: 13 }}>{t.icon}</span><span>{t.label}</span></button>
-            ))}
-            {/* Admin button */}
-            <button onClick={() => { if (adminAuth) setShowAdmin(true); else setTab("admin-login"); }} style={{
-              background: "rgba(255,77,106,0.08)", border: "1px solid rgba(255,77,106,0.2)",
-              color: "#FF4D6A", padding: "8px 12px", borderRadius: 8, cursor: "pointer",
-              fontSize: 12, fontWeight: 700, fontFamily: "var(--head)", letterSpacing: 1,
-              marginLeft: 4, transition: "all 0.3s",
-            }}>🔧</button>
-          </nav>
+          {isMobile ? (
+            <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu" style={{
+              background: menuOpen ? "rgba(180,130,255,0.12)" : "rgba(255,255,255,0.04)",
+              border: `1px solid ${menuOpen ? "rgba(180,130,255,0.3)" : "#1E1A36"}`,
+              color: menuOpen ? "#B388FF" : "#8A82A6",
+              padding: "8px 12px", borderRadius: 8, cursor: "pointer",
+              fontSize: 20, lineHeight: 1, transition: "all 0.2s",
+            }}>{menuOpen ? "✕" : "☰"}</button>
+          ) : (
+            <nav style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              {tabs.map(t => (
+                <button key={t.id} onClick={() => setTab(t.id)} style={{
+                  background: tab === t.id ? "rgba(180,130,255,0.1)" : "transparent",
+                  border: tab === t.id ? "1px solid rgba(180,130,255,0.2)" : "1px solid transparent",
+                  color: tab === t.id ? "#B388FF" : "#4A4468",
+                  padding: "8px 14px", borderRadius: 8, cursor: "pointer",
+                  fontSize: 12, fontWeight: 700, fontFamily: "var(--head)", letterSpacing: 2,
+                  display: "flex", alignItems: "center", gap: 6, transition: "all 0.3s",
+                }}><span style={{ fontSize: 13 }}>{t.icon}</span><span>{t.label}</span></button>
+              ))}
+              <button onClick={() => { if (adminAuth) setShowAdmin(true); else setTab("admin-login"); }} style={{
+                background: "rgba(255,77,106,0.08)", border: "1px solid rgba(255,77,106,0.2)",
+                color: "#FF4D6A", padding: "8px 12px", borderRadius: 8, cursor: "pointer",
+                fontSize: 12, fontWeight: 700, fontFamily: "var(--head)", letterSpacing: 1,
+                marginLeft: 4, transition: "all 0.3s",
+              }}>🔧</button>
+            </nav>
+          )}
         </div>
+        {isMobile && menuOpen && (
+          <div style={{ position: "absolute", top: 64, left: 0, right: 0, background: "rgba(8,6,26,0.98)", backdropFilter: "blur(24px)", borderBottom: "1px solid rgba(180,130,255,0.12)", padding: "12px 14px 18px", display: "flex", flexDirection: "column", gap: 6, animation: "slideUp 0.25s ease" }}>
+            {tabs.map(t => (
+              <button key={t.id} onClick={() => { setTab(t.id); setMenuOpen(false); }} style={{
+                background: tab === t.id ? "rgba(180,130,255,0.12)" : "transparent",
+                border: tab === t.id ? "1px solid rgba(180,130,255,0.25)" : "1px solid #1E1A36",
+                color: tab === t.id ? "#B388FF" : "#8A82A6",
+                padding: "12px 16px", borderRadius: 10, cursor: "pointer",
+                fontSize: 14, fontWeight: 700, fontFamily: "var(--head)", letterSpacing: 2,
+                display: "flex", alignItems: "center", gap: 12, textAlign: "left",
+              }}><span style={{ fontSize: 18 }}>{t.icon}</span><span>{t.label}</span></button>
+            ))}
+            <button onClick={() => { setMenuOpen(false); if (adminAuth) setShowAdmin(true); else setTab("admin-login"); }} style={{
+              background: "rgba(255,77,106,0.1)", border: "1px solid rgba(255,77,106,0.25)",
+              color: "#FF4D6A", padding: "12px 16px", borderRadius: 10, cursor: "pointer",
+              fontSize: 14, fontWeight: 700, fontFamily: "var(--head)", letterSpacing: 2,
+              display: "flex", alignItems: "center", gap: 12, textAlign: "left",
+            }}><span style={{ fontSize: 18 }}>🔧</span><span>ADMIN</span></button>
+          </div>
+        )}
       </header>
 
-      <main style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px", position: "relative", zIndex: 2 }}>
+      <main style={{ maxWidth: 1200, margin: "0 auto", padding: isMobile ? "20px 14px" : "32px 24px", position: "relative", zIndex: 2 }}>
 
         {/* ── Admin Login ── */}
         {tab === "admin-login" && !adminAuth && (
-          <div style={{ animation: "slideUp 0.6s ease", maxWidth: 400, margin: "80px auto", textAlign: "center" }}>
+          <div style={{ animation: "slideUp 0.6s ease", maxWidth: 400, margin: isMobile ? "40px auto" : "80px auto", textAlign: "center" }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
             <h2 style={{ fontFamily: "var(--title)", fontSize: 28, fontWeight: 900, color: "#B388FF", margin: "0 0 8px" }}>ADMIN LOGIN</h2>
             <p style={{ color: "#4A4468", fontFamily: "var(--mono)", fontSize: 13, marginBottom: 28 }}>Enter the admin password to continue</p>
@@ -759,8 +802,8 @@ export default function RyslingeCity() {
         {/* ═══ HOME ═══ */}
         {tab === "home" && (
           <div style={{ animation: "slideUp 0.6s ease" }}>
-            <div style={{ textAlign: "center", padding: "60px 0 50px" }}>
-              <div style={{ fontSize: 80, marginBottom: 16, animation: "float 4s ease-in-out infinite" }}>🏰</div>
+            <div style={{ textAlign: "center", padding: isMobile ? "30px 0 30px" : "60px 0 50px" }}>
+              <div style={{ fontSize: isMobile ? 64 : 80, marginBottom: 16, animation: "float 4s ease-in-out infinite" }}>🏰</div>
               <h1 style={{ fontFamily: "var(--title)", fontSize: "clamp(34px,6vw,62px)", fontWeight: 900, background: "linear-gradient(135deg, #B388FF 0%, #E040FB 30%, #FF4D6A 60%, #FFB300 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: "0 0 12px", animation: "titleGlow 4s ease-in-out infinite", lineHeight: 1.1 }}>RYSLINGECITY</h1>
               <div style={{ fontFamily: "var(--mono)", fontSize: 13, color: "#6B6490", letterSpacing: 4, textTransform: "uppercase", marginBottom: 8 }}>RPG · Custom Mobs · Dungeons · Boss Fights</div>
               <p style={{ color: "#4A4468", fontSize: 14, fontFamily: "var(--mono)", maxWidth: 480, margin: "0 auto 40px", lineHeight: 1.7 }}>An epic RPG Minecraft server with hand-crafted dungeons,<br />custom bosses, unique classes, and endless adventures.</p>
