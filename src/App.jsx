@@ -12,9 +12,9 @@ const TABLES = {
   },
   roadmap: {
     name: "roadmap",
-    orderColumn: "position",
-    toRow: (r) => ({ id: r.id, quarter: r.quarter, title: r.title, date: r.date, status: r.status, progress: r.progress, description: r.desc, icon: r.icon, position: r.position ?? 0 }),
-    fromRow: (r) => ({ id: r.id, quarter: r.quarter, title: r.title, date: r.date, status: r.status, progress: r.progress, desc: r.description, icon: r.icon, position: r.position ?? 0 }),
+    orderColumn: null,
+    toRow: (r) => ({ id: r.id, quarter: r.quarter, title: r.title, date: r.date, status: r.status, progress: r.progress, description: r.desc, icon: r.icon }),
+    fromRow: (r) => ({ id: r.id, quarter: r.quarter, title: r.title, date: r.date, status: r.status, progress: r.progress, desc: r.description, icon: r.icon }),
   },
   rules: {
     name: "rules",
@@ -24,9 +24,9 @@ const TABLES = {
   },
   staff: {
     name: "staff",
-    orderColumn: "position",
-    toRow: (s) => ({ id: s.id, name: s.name, role: s.role, color: s.color, icon: s.icon, discord: s.discord, description: s.desc, position: s.position ?? 0 }),
-    fromRow: (r) => ({ id: r.id, name: r.name, role: r.role, color: r.color, icon: r.icon, discord: r.discord, desc: r.description, position: r.position ?? 0 }),
+    orderColumn: null,
+    toRow: (s) => ({ id: s.id, name: s.name, role: s.role, color: s.color, icon: s.icon, discord: s.discord, description: s.desc }),
+    fromRow: (r) => ({ id: r.id, name: r.name, role: r.role, color: r.color, icon: r.icon, discord: r.discord, desc: r.description }),
   },
 };
 
@@ -353,12 +353,10 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, rules, setRules,
 
   const saveRoadmapItem = () => {
     if (!roadmapForm.title || !roadmapForm.desc) return;
-    const maxPos = roadmap.reduce((m, r) => Math.max(m, r.position ?? 0), -1);
     const item = {
       ...roadmapForm,
       id: roadmapForm.id || "r" + Date.now(),
       progress: parseInt(roadmapForm.progress) || 0,
-      position: editItem ? (editItem.position ?? 0) : maxPos + 1,
     };
     if (editItem) {
       setRoadmap(prev => prev.map(r => r.id === editItem.id ? item : r));
@@ -375,20 +373,15 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, rules, setRules,
     onSave();
   };
 
+  // Local-only reorder — roadmap table has no ordering column, so order resets on refresh.
   const moveRoadmap = (index, dir) => {
-    const target = index + dir;
-    if (target < 0 || target >= roadmap.length) return;
-    const a = roadmap[index];
-    const b = roadmap[target];
-    const aNew = { ...a, position: b.position ?? target };
-    const bNew = { ...b, position: a.position ?? index };
-    setRoadmap(prev => prev.map(it => {
-      if (it.id === a.id) return aNew;
-      if (it.id === b.id) return bNew;
-      return it;
-    }).sort((x, y) => (x.position ?? 0) - (y.position ?? 0)));
-    upsertItem("roadmap", aNew);
-    upsertItem("roadmap", bNew);
+    setRoadmap(prev => {
+      const target = index + dir;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
     onSave();
   };
 
@@ -442,12 +435,7 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, rules, setRules,
 
   const saveStaff = () => {
     if (!staffForm.name.trim() || !staffForm.role.trim()) return;
-    const maxPos = staff.reduce((m, s) => Math.max(m, s.position ?? 0), -1);
-    const item = {
-      ...staffForm,
-      id: staffForm.id || "s" + Date.now(),
-      position: editItem ? (editItem.position ?? 0) : maxPos + 1,
-    };
+    const item = { ...staffForm, id: staffForm.id || "s" + Date.now() };
     if (editItem) {
       setStaff(prev => prev.map(s => s.id === editItem.id ? item : s));
     } else {
@@ -463,20 +451,15 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, rules, setRules,
     onSave();
   };
 
+  // Local-only reorder — staff table has no ordering column, so order resets on refresh.
   const moveStaff = (index, dir) => {
-    const target = index + dir;
-    if (target < 0 || target >= staff.length) return;
-    const a = staff[index];
-    const b = staff[target];
-    const aNew = { ...a, position: b.position ?? target };
-    const bNew = { ...b, position: a.position ?? index };
-    setStaff(prev => prev.map(it => {
-      if (it.id === a.id) return aNew;
-      if (it.id === b.id) return bNew;
-      return it;
-    }).sort((x, y) => (x.position ?? 0) - (y.position ?? 0)));
-    upsertItem("staff", aNew);
-    upsertItem("staff", bNew);
+    setStaff(prev => {
+      const target = index + dir;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
     onSave();
   };
 
@@ -775,11 +758,19 @@ export default function RyslingeCity() {
         return null;
       }
       if (!rows || rows.length === 0) {
+        console.log(`Supabase ${key} is empty — seeding ${defaults.length} default rows...`);
         const seeded = defaults.map((d, i) => (TABLES[key].orderColumn ? { ...d, position: i } : d));
-        const { error: seedError } = await supabase
+        const payload = seeded.map(TABLES[key].toRow);
+        const { data: inserted, error: seedError } = await supabase
           .from(TABLES[key].name)
-          .upsert(seeded.map(TABLES[key].toRow));
-        if (seedError) console.error(`Supabase ${key} seed error:`, seedError);
+          .insert(payload)
+          .select();
+        if (seedError) {
+          console.error(`Supabase ${key} seed error:`, seedError);
+          console.error(`Supabase ${key} seed payload was:`, payload);
+          return seeded; // still render defaults locally so the page isn't blank
+        }
+        console.log(`Supabase ${key} seeded ${inserted?.length ?? 0} rows.`);
         return seeded;
       }
       return rows.map(TABLES[key].fromRow);
