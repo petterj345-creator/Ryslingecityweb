@@ -1,8 +1,51 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { db } from "./firebase";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { supabase } from "./supabase";
 
-const SITE_DOC_PATH = ["site", "content"];
+/* ─── Supabase table mappers ─── */
+/* orderColumn = name of the integer ordering column in the DB (null if unordered) */
+const TABLES = {
+  updates: {
+    name: "updates",
+    orderColumn: null,
+    toRow: (u) => ({ id: u.id, date: u.date, title: u.title, description: u.desc, type: u.type }),
+    fromRow: (r) => ({ id: r.id, date: r.date, title: r.title, desc: r.description, type: r.type }),
+  },
+  roadmap: {
+    name: "roadmap",
+    orderColumn: "position",
+    toRow: (r) => ({ id: r.id, quarter: r.quarter, title: r.title, date: r.date, status: r.status, progress: r.progress, description: r.desc, icon: r.icon, position: r.position ?? 0 }),
+    fromRow: (r) => ({ id: r.id, quarter: r.quarter, title: r.title, date: r.date, status: r.status, progress: r.progress, desc: r.description, icon: r.icon, position: r.position ?? 0 }),
+  },
+  rules: {
+    name: "rules",
+    orderColumn: "sort_order",
+    toRow: (r) => ({ id: r.id, rule_text: r.text, sort_order: r.position ?? 0 }),
+    fromRow: (r) => ({ id: r.id, text: r.rule_text, position: r.sort_order ?? 0 }),
+  },
+  staff: {
+    name: "staff",
+    orderColumn: "position",
+    toRow: (s) => ({ id: s.id, name: s.name, role: s.role, color: s.color, icon: s.icon, discord: s.discord, description: s.desc, position: s.position ?? 0 }),
+    fromRow: (r) => ({ id: r.id, name: r.name, role: r.role, color: r.color, icon: r.icon, discord: r.discord, desc: r.description, position: r.position ?? 0 }),
+  },
+};
+
+function sortByOrder(table, list) {
+  const col = TABLES[table].orderColumn;
+  if (!col) return list;
+  // The JS-side field is always called `position` for ordered tables.
+  return [...list].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+}
+
+async function upsertItem(table, item) {
+  const { error } = await supabase.from(TABLES[table].name).upsert(TABLES[table].toRow(item));
+  if (error) console.error(`Supabase ${table} upsert error:`, error);
+}
+
+async function deleteItemRow(table, id) {
+  const { error } = await supabase.from(TABLES[table].name).delete().eq("id", id);
+  if (error) console.error(`Supabase ${table} delete error:`, error);
+}
 
 /* ─── Default Data ─── */
 const DEFAULT_STORE = [
@@ -294,10 +337,15 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, rules, setRules,
     } else {
       setUpdates(prev => [item, ...prev]);
     }
+    upsertItem("updates", item);
     setNewsForm(emptyNews); setEditItem(null); showSaved(); onSave();
   };
 
-  const deleteNews = (id) => { setUpdates(prev => prev.filter(u => u.id !== id)); onSave(); };
+  const deleteNews = (id) => {
+    setUpdates(prev => prev.filter(u => u.id !== id));
+    deleteItemRow("updates", id);
+    onSave();
+  };
 
   // ── Roadmap form
   const emptyRoadmap = { id: "", quarter: "Q2 2026", title: "", date: "", status: "planned", progress: 0, desc: "", icon: "🎯" };
@@ -305,25 +353,42 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, rules, setRules,
 
   const saveRoadmapItem = () => {
     if (!roadmapForm.title || !roadmapForm.desc) return;
-    const item = { ...roadmapForm, id: roadmapForm.id || "r" + Date.now(), progress: parseInt(roadmapForm.progress) || 0 };
+    const maxPos = roadmap.reduce((m, r) => Math.max(m, r.position ?? 0), -1);
+    const item = {
+      ...roadmapForm,
+      id: roadmapForm.id || "r" + Date.now(),
+      progress: parseInt(roadmapForm.progress) || 0,
+      position: editItem ? (editItem.position ?? 0) : maxPos + 1,
+    };
     if (editItem) {
       setRoadmap(prev => prev.map(r => r.id === editItem.id ? item : r));
     } else {
       setRoadmap(prev => [...prev, item]);
     }
+    upsertItem("roadmap", item);
     setRoadmapForm(emptyRoadmap); setEditItem(null); showSaved(); onSave();
   };
 
-  const deleteRoadmap = (id) => { setRoadmap(prev => prev.filter(r => r.id !== id)); onSave(); };
+  const deleteRoadmap = (id) => {
+    setRoadmap(prev => prev.filter(r => r.id !== id));
+    deleteItemRow("roadmap", id);
+    onSave();
+  };
 
   const moveRoadmap = (index, dir) => {
-    setRoadmap(prev => {
-      const target = index + dir;
-      if (target < 0 || target >= prev.length) return prev;
-      const next = [...prev];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
+    const target = index + dir;
+    if (target < 0 || target >= roadmap.length) return;
+    const a = roadmap[index];
+    const b = roadmap[target];
+    const aNew = { ...a, position: b.position ?? target };
+    const bNew = { ...b, position: a.position ?? index };
+    setRoadmap(prev => prev.map(it => {
+      if (it.id === a.id) return aNew;
+      if (it.id === b.id) return bNew;
+      return it;
+    }).sort((x, y) => (x.position ?? 0) - (y.position ?? 0)));
+    upsertItem("roadmap", aNew);
+    upsertItem("roadmap", bNew);
     onSave();
   };
 
@@ -333,25 +398,41 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, rules, setRules,
 
   const saveRule = () => {
     if (!ruleForm.text.trim()) return;
-    const item = { ...ruleForm, id: ruleForm.id || "rule" + Date.now() };
+    const maxPos = rules.reduce((m, r) => Math.max(m, r.position ?? 0), -1);
+    const item = {
+      ...ruleForm,
+      id: ruleForm.id || "rule" + Date.now(),
+      position: editItem ? (editItem.position ?? 0) : maxPos + 1,
+    };
     if (editItem) {
       setRules(prev => prev.map(r => r.id === editItem.id ? item : r));
     } else {
       setRules(prev => [...prev, item]);
     }
+    upsertItem("rules", item);
     setRuleForm(emptyRule); setEditItem(null); showSaved(); onSave();
   };
 
-  const deleteRule = (id) => { setRules(prev => prev.filter(r => r.id !== id)); onSave(); };
+  const deleteRule = (id) => {
+    setRules(prev => prev.filter(r => r.id !== id));
+    deleteItemRow("rules", id);
+    onSave();
+  };
 
   const moveRule = (index, dir) => {
-    setRules(prev => {
-      const target = index + dir;
-      if (target < 0 || target >= prev.length) return prev;
-      const next = [...prev];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
+    const target = index + dir;
+    if (target < 0 || target >= rules.length) return;
+    const a = rules[index];
+    const b = rules[target];
+    const aNew = { ...a, position: b.position ?? target };
+    const bNew = { ...b, position: a.position ?? index };
+    setRules(prev => prev.map(it => {
+      if (it.id === a.id) return aNew;
+      if (it.id === b.id) return bNew;
+      return it;
+    }).sort((x, y) => (x.position ?? 0) - (y.position ?? 0)));
+    upsertItem("rules", aNew);
+    upsertItem("rules", bNew);
     onSave();
   };
 
@@ -361,25 +442,41 @@ function AdminPanel({ updates, setUpdates, roadmap, setRoadmap, rules, setRules,
 
   const saveStaff = () => {
     if (!staffForm.name.trim() || !staffForm.role.trim()) return;
-    const item = { ...staffForm, id: staffForm.id || "s" + Date.now() };
+    const maxPos = staff.reduce((m, s) => Math.max(m, s.position ?? 0), -1);
+    const item = {
+      ...staffForm,
+      id: staffForm.id || "s" + Date.now(),
+      position: editItem ? (editItem.position ?? 0) : maxPos + 1,
+    };
     if (editItem) {
       setStaff(prev => prev.map(s => s.id === editItem.id ? item : s));
     } else {
       setStaff(prev => [...prev, item]);
     }
+    upsertItem("staff", item);
     setStaffForm(emptyStaff); setEditItem(null); showSaved(); onSave();
   };
 
-  const deleteStaff = (id) => { setStaff(prev => prev.filter(s => s.id !== id)); onSave(); };
+  const deleteStaff = (id) => {
+    setStaff(prev => prev.filter(s => s.id !== id));
+    deleteItemRow("staff", id);
+    onSave();
+  };
 
   const moveStaff = (index, dir) => {
-    setStaff(prev => {
-      const target = index + dir;
-      if (target < 0 || target >= prev.length) return prev;
-      const next = [...prev];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
+    const target = index + dir;
+    if (target < 0 || target >= staff.length) return;
+    const a = staff[index];
+    const b = staff[target];
+    const aNew = { ...a, position: b.position ?? target };
+    const bNew = { ...b, position: a.position ?? index };
+    setStaff(prev => prev.map(it => {
+      if (it.id === a.id) return aNew;
+      if (it.id === b.id) return bNew;
+      return it;
+    }).sort((x, y) => (x.position ?? 0) - (y.position ?? 0)));
+    upsertItem("staff", aNew);
+    upsertItem("staff", bNew);
     onSave();
   };
 
@@ -665,48 +762,74 @@ export default function RyslingeCity() {
   const [pwInput, setPwInput] = useState("");
   const [pwError, setPwError] = useState(false);
 
-  // Firestore subscribe + auto-save
-  const isFromSnapshot = useRef(false);
-
+  // Initial load from Supabase + realtime subscriptions
   useEffect(() => {
-    const ref = doc(db, ...SITE_DOC_PATH);
-    const unsub = onSnapshot(ref, (snap) => {
-      if (snap.exists()) {
-        const d = snap.data();
-        isFromSnapshot.current = true;
-        setData({
-          updates: d.updates || DEFAULT_UPDATES,
-          roadmap: d.roadmap || DEFAULT_ROADMAP,
-          rules: d.rules || DEFAULT_RULES,
-          staff: d.staff || DEFAULT_STAFF,
-        });
-      } else {
-        // Document doesn't exist yet — seed with defaults
-        setDoc(ref, {
-          updates: DEFAULT_UPDATES,
-          roadmap: DEFAULT_ROADMAP,
-          rules: DEFAULT_RULES,
-          staff: DEFAULT_STAFF,
-        }).catch(e => console.error("Firestore seed error:", e));
+    let cancelled = false;
+
+    const loadTable = async (key, defaults) => {
+      let query = supabase.from(TABLES[key].name).select("*");
+      if (TABLES[key].orderColumn) query = query.order(TABLES[key].orderColumn, { ascending: true });
+      const { data: rows, error } = await query;
+      if (error) {
+        console.error(`Supabase ${key} load error:`, error);
+        return null;
       }
+      if (!rows || rows.length === 0) {
+        const seeded = defaults.map((d, i) => (TABLES[key].orderColumn ? { ...d, position: i } : d));
+        const { error: seedError } = await supabase
+          .from(TABLES[key].name)
+          .upsert(seeded.map(TABLES[key].toRow));
+        if (seedError) console.error(`Supabase ${key} seed error:`, seedError);
+        return seeded;
+      }
+      return rows.map(TABLES[key].fromRow);
+    };
+
+    (async () => {
+      const [u, r, ru, st] = await Promise.all([
+        loadTable("updates", DEFAULT_UPDATES),
+        loadTable("roadmap", DEFAULT_ROADMAP),
+        loadTable("rules", DEFAULT_RULES),
+        loadTable("staff", DEFAULT_STAFF),
+      ]);
+      if (cancelled) return;
+      setData({
+        updates: u || DEFAULT_UPDATES,
+        roadmap: r || DEFAULT_ROADMAP,
+        rules: ru || DEFAULT_RULES,
+        staff: st || DEFAULT_STAFF,
+      });
       setLoading(false);
-    }, (err) => {
-      console.error("Firestore subscribe error:", err);
-      setLoading(false);
-    });
-    return unsub;
+    })();
+
+    const handleChange = (key) => (payload) => {
+      const { eventType, new: newRow, old: oldRow } = payload;
+      setData((prev) => {
+        const list = prev[key] || [];
+        if (eventType === "DELETE") {
+          return { ...prev, [key]: list.filter((it) => it.id !== oldRow.id) };
+        }
+        const mapped = TABLES[key].fromRow(newRow);
+        const idx = list.findIndex((it) => it.id === mapped.id);
+        const next = idx === -1 ? [...list, mapped] : list.map((it, i) => i === idx ? mapped : it);
+        return { ...prev, [key]: sortByOrder(key, next) };
+      });
+    };
+
+    const channels = Object.keys(TABLES).map((key) =>
+      supabase
+        .channel(`${TABLES[key].name}_changes`)
+        .on("postgres_changes", { event: "*", schema: "public", table: TABLES[key].name }, handleChange(key))
+        .subscribe()
+    );
+
+    return () => {
+      cancelled = true;
+      channels.forEach((ch) => supabase.removeChannel(ch));
+    };
   }, []);
 
-  useEffect(() => {
-    if (loading) return;
-    if (isFromSnapshot.current) {
-      isFromSnapshot.current = false;
-      return;
-    }
-    setDoc(doc(db, ...SITE_DOC_PATH), data).catch(e => console.error("Firestore save error:", e));
-  }, [data, loading]);
-
-  const handleSave = useCallback(() => {}, []); // saves are automatic via Firestore
+  const handleSave = useCallback(() => {}, []); // per-operation writes happen in AdminPanel
 
   const tryLogin = () => {
     if (pwInput === ADMIN_PASSWORD) { setAdminAuth(true); setShowAdmin(true); setPwError(false); }
